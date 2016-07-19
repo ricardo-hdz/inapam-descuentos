@@ -1,0 +1,29 @@
+{
+  "name": "inapam-descuentos",
+  "version": "1.0.0",
+  "description": "Utility to do data marshalling of Inapam discounts data",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ricardo-hdz/inapam-descuentos.git"
+  },
+  "keywords": [
+    "inapa",
+    "data",
+    "open-data"
+  ],
+  "author": "Ricardo Hernandez",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ricardo-hdz/inapam-descuentos/issues"
+  },
+  "homepage": "https://github.com/ricardo-hdz/inapam-descuentos",
+  "dependencies": {
+    "chai": "^3.5.0",
+    "lodash": "^4.13.1",
+    "mocha": "^2.5.3"
+  }
+}
