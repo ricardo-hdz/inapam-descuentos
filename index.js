@@ -39,7 +39,7 @@ function app() {
             });
         }
         console.log(transformedData.length);
-        // writeJsonFile(transformedData);
+        writeJsonFile(transformedData);
         return transformedData;
     };
 
@@ -51,12 +51,12 @@ function app() {
         });
     };
 
-
-
     return {
         marshall: marshall,
         writeJsonFile: writeJsonFile
     };
 }
+
+app().marshall();
 
 module.exports = app;
