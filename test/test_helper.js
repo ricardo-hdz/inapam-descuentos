@@ -34,4 +34,15 @@ describe('Inapam Discounts', function() {
             assert.property(data[0], property);
         });
     });
+
+    it('should extract states of single state', function() {
+        var states = 'state';
+        expect(app.extractStates(states)).to.deep.equal(['state']);
+    });
+
+    it('should extract states of multiple state', function() {
+
+        var states = 'DISTRITO FEDERAL     , PACHUCA, ESTADO DE MEXICO, QUERETARO';
+        expect(app.extractStates(states)).to.deep.equal(['DISTRITO FEDERAL', 'PACHUCA', 'ESTADO DE MEXICO', 'QUERETARO']);
+    });
 });
