@@ -1,4 +1,4 @@
-[
+var data = [
   {
     "_aData": [
       "AUXILIARES AUDITIVOS OTICON",
@@ -56139,4 +56139,10 @@
       "20% AL 30%*"
     ]
   }
-]
+];
+
+function providerData() {
+  return data;
+};
+
+module.exports = providerData;
