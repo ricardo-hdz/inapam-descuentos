@@ -32,6 +32,8 @@ var states = [
     "coahuila",
     "baja california norte",
     "baja california",
-    "california"
+    "california",
+    "yucatan",
+    "nayarit"
 ];
 module.exports = states;
