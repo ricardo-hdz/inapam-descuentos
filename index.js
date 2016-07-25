@@ -1,8 +1,9 @@
 /* global require */
 'use strict';
 var _ = require('lodash');
-var data = require('./data_helper')();
+var rawData = require('./data_helper')();
 var jsonfile = require('jsonfile');
+var writefile = require('writefile');
 var officialStates = require('./data_state_helper');
 
 var properties = [
@@ -20,15 +21,15 @@ var properties = [
 
 function app() {
     var stateNames = [];
+    var rubros = [];
     var dataStates = {};
     var dataCities = {};
     var dataStatesCities = {};
     var dataStatesMapping = {};
 
-    var marshall = function() {
+    var marshall = function(data) {
         var transformedData = [];
         if (!_.isEmpty(data)) {
-
             _.forEach(data, function(provider, key) {
                 if (_.has(provider, '_aData')) {
                     var arrayData = provider._aData;
@@ -36,7 +37,18 @@ function app() {
 
                     _.forEach(arrayData, function(propertyValue, key) {
                         var property = properties[key];
-                        providerObject[property] = propertyValue;
+
+                        if (property === 'descuento' ) {
+                            providerObject[property] = propertyValue;
+                        } else {
+                            var propertyString = _.lowerCase(propertyValue);
+                            if (propertyString === 'n e') {
+                                propertyString = 'No Disponible';
+                            }
+                            propertyString = _.startCase(propertyString);
+
+                            providerObject[property] = propertyString;
+                        }
                     });
 
                     var city = providerObject['municipio'];
@@ -44,20 +56,43 @@ function app() {
                         dataCities[city] = [];
                     }
 
+                    var rubro = providerObject['rubro'];
+                    if (_.indexOf(rubros, rubro) === -1) {
+                        rubros.push(rubro);
+                    }
+
                     addStates(providerObject);
+                    verifyServicesAndIndustry(providerObject);
                     dataCities[city].push(providerObject);
                     transformedData.push(providerObject);
+                } else {
+                    console.log('Object missing _aData');
                 }
             });
+        } else {
+            console.log('data is isEmpty');
         }
 
-        writeJsonFile(transformedData, 'data');
-        writeJsonFile(dataStates, 'dataStates');
-        writeJsonFile(dataCities, 'dataCities');
-        writeJsonFile(dataStatesCities, 'dataStatesCities');
-        writeJsonFile(dataStatesMapping, 'dataStatesMapping');
-        writeJsonFile(_.orderBy(stateNames, 'desc'), 'stateNames');
+        // Write files
+        writeFile(transformedData, 'data', './', 'json');
+        writeFile(dataStates, 'dataStates', './', 'json');
+        writeFile(dataCities, 'dataCities', './', 'json');
+        writeFile(dataStatesCities, 'dataStatesCities', './', 'json');
+        writeFile(dataStatesMapping, 'dataStatesMapping', './', 'json');
+        writeFile(_.orderBy(stateNames, 'desc'), 'stateNames', './', 'json');
+        writeFile(_.orderBy(rubros, 'desc'), 'rubros', './', 'json');
+
+        constructStateCitiesXmlFile(dataStatesMapping);
         return transformedData;
+    };
+
+    var verifyServicesAndIndustry = function(providerObject) {
+        var rubro = providerObject['rubro'];
+        var servicio = providerObject['servicio'];
+
+        if (rubro.indexOf(servicio) > -1) {
+            providerObject['rubro'] = rubro.replace(servicio, '');
+        }
     };
 
     var addStates = function(providerObject) {
@@ -81,8 +116,8 @@ function app() {
 
             if (_.indexOf(officialStates, stateName) === -1) {
                 stateName = 'nacional';
-                providerObject['estado'] = 'nacional';
-                providerObject['municipio'] = 'sucursales';
+                providerObject['estado'] = 'A Nivel Nacional';
+                providerObject['municipio'] = 'Sucursales';
                 providerObject['colonia'] = '';
                 providerObject['cp'] = '';
                 providerObject['direccion'] = '';
@@ -105,22 +140,20 @@ function app() {
     };
 
     var addCityToState = function(providerObject, stateName) {
-        // if (stateName === 'sucursales') {
-        //     if (!_.has(dataStatesCities, stateName)) {
-        //         dataStatesCities[stateName] = [];
-        //         dataStatesMapping[stateName] = [];
-        //     }
-        //     dataStatesCities[stateName].push(providerObject);
-
-        // } else {
             var city = providerObject['municipio'].toLowerCase();
+            if (city === 'n/e') {
+                city = 'sucursales';
+            }
+            city = city.replace(/[`~!@#$%^&*()_|+\-=?;:'",.<>\{\}\[\]\\\/]/gi, '');
             if (!_.has(dataStatesCities, stateName)) {
                 dataStatesCities[stateName] = {};
                 dataStatesMapping[stateName] = [];
             }
             if (!_.has(dataStatesCities[stateName], city)) {
                 dataStatesCities[stateName][city] = [];
-                dataStatesMapping[stateName].push(city);
+                if (city !== 'no disponible') {
+                    dataStatesMapping[stateName].push(_.startCase(city));
+                }
             }
             dataStatesCities[stateName][city].push(providerObject);
         // }
@@ -138,22 +171,55 @@ function app() {
         return _.map(statesSplitComma, _.trim);
     };
 
-    var writeJsonFile = function(data, name) {
-        var file = './' + name + '.json';
+    var writeFile = function(data, name, location, extension) {
+        var file = location + name + '.' + extension;
 
         jsonfile.writeFile(file, data, {spaces: 4}, function(err) {
             console.error(err);
         });
     };
 
+    var constructStateCitiesXmlFile = function(dataStatesMapping) {
+        var xmlHeader = '<?xml version="1.0" encoding="utf-8"?>' +
+            '<resources>';
+
+        var xmlFooter = '</string-array>' +
+            '</resources>';
+
+        var xmlItems = '';
+        var stateName;
+        var xmlArrayHeader = '';
+        var regex = new RegExp(' ', 'g');
+
+        _.forEach(dataStatesMapping, function(objectCities, state) {
+            stateName = state;
+            if (!_.isEmpty(objectCities)) {
+
+                stateName = stateName.replace(regex, '_');
+                xmlArrayHeader = '<string-array name="' + stateName + '_array' + '">';
+                xmlItems = '';
+                _.forEach(objectCities, function(city, index) {
+                    xmlItems = xmlItems + '<item>' + city + '</\item>';
+                });
+            }
+            var xml = xmlHeader + xmlArrayHeader + xmlItems + xmlFooter;
+
+            writefile('./state-cities-xml/' + stateName + '.xml', xml);
+        });
+
+
+        return xmlItems;
+    };
+
     return {
         marshall: marshall,
-        writeJsonFile: writeJsonFile,
+        writeFile: writeFile,
         extractStates: extractStates,
-        addStates: addStates
+        addStates: addStates,
+        constructStateCitiesXmlFile: constructStateCitiesXmlFile
     };
 }
 
-app().marshall();
+app().marshall(rawData);
 
 module.exports = app;
